@@ -37,7 +37,7 @@ class CustomLoginView(LoginView):
 
 
 class CustomLogoutView(LogoutView):
-    next_page = '/login/'  
+    next_page = '/login/'  # Redirect to the custom login page
     http_method_names = ['get', 'post']
 
 @login_required
