@@ -6,18 +6,14 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 import json
 from .models import ListItem
+from django.contrib.auth.models import User
 
 class CustomLoginView(LoginView):
     template_name = 'webapp/login.html'
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        # Fetch the latest 10 items
-        context['latest_items'] = ListItem.objects.order_by('-number_in_list')[:10]
-        return context
-
     def get_success_url(self):
         user = self.request.user
+
         # Debugging: Check the user and their groups
         print(f"User: {user.username}")
         print(f"Groups: {[group.name for group in user.groups.all()]}")
@@ -34,7 +30,6 @@ class CustomLoginView(LoginView):
         else:
             print("Redirecting to /public/")
             return '/public/'  # Default fallback
-
 
 class CustomLogoutView(LogoutView):
     next_page = '/login/'  # Redirect to the custom login page
@@ -98,6 +93,43 @@ def manage_items(request, pk=None):
                 created_by=request.user,
             )
             return JsonResponse({"success": True, "id": item.number_in_list})
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)})
+
+    return HttpResponse("Invalid request method", status=405)
+
+@method_decorator(csrf_exempt, name='dispatch')
+def judge_item(request, pk):
+    if request.method == "POST":
+        try:
+            body = json.loads(request.body)
+            vote = body.get("vote")  # 'valid' or 'not valid'
+
+            if vote not in ["valid", "not valid"]:
+                return JsonResponse({"success": False, "error": "Invalid vote value."})
+
+            item = get_object_or_404(ListItem, pk=pk)
+
+            # Update votes
+            if vote == "valid":
+                item.votes_had += 1
+            elif vote == "not valid":
+                item.votes_had -= 1
+
+            # Check majority
+            judges_count = User.objects.filter(groups__name='Judge').count()
+            majority = judges_count // 2 + 1
+
+            if item.votes_had >= majority:
+                item.is_valid = True
+            elif abs(item.votes_had) >= majority:
+                item.is_valid = False
+            else:
+                item.is_valid = None  # Undecided
+
+            item.save()
+            return JsonResponse({"success": True, "is_valid": item.is_valid, "votes_had": item.votes_had})
+
         except Exception as e:
             return JsonResponse({"success": False, "error": str(e)})
 
