@@ -10,18 +10,18 @@
     <div class="card mb-4">
         <div class="card-header">Add New Item</div>
         <div class="card-body">
-            <form id="addItemForm">
+            <form id="add-item-form">
+                {% csrf_token %}
                 <div class="mb-3">
-                    <label for="itemTitle" class="form-label">Title</label>
-                    <input type="text" class="form-control" id="itemTitle" placeholder="Enter title" required>
+                    <label for="name" class="form-label">Title:</label>
+                    <input type="text" id="name" name="name" class="form-control" required>
                 </div>
                 <div class="mb-3">
-                    <label for="itemDescription" class="form-label">Description</label>
-                    <textarea class="form-control" id="itemDescription" rows="3" placeholder="Enter description"
-                        required></textarea>
+                    <label for="description" class="form-label">Description:</label>
+                    <textarea id="description" name="description" class="form-control" required></textarea>
                 </div>
                 <button type="submit" class="btn btn-primary">Add Item</button>
-            </form>
+            </form>            
         </div>
     </div>
 
@@ -51,68 +51,71 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-        const table = new DataTable("#listTable", {
-            paging: true,
-            searching: true,
-            ordering: true,
-        });
-
-        // Fetch and populate the DataTable
         function fetchItems() {
             fetch("/items/")
-                .then((response) => response.json())
-                .then((data) => {
+                .then(response => response.json())
+                .then(data => {
                     const tbody = document.querySelector("#listTable tbody");
                     tbody.innerHTML = "";
-                    data.forEach((item) => {
+                    data.forEach(item => {
                         const row = `
-            <tr>
-              <td>${item.number_in_list}</td>
-              <td>${item.name}</td>
-              <td>${item.description}</td>
-              <td>${item.is_valid === true ? "Valid" : item.is_valid === false ? "Not Valid" : "Pending"}</td>
-              <td>${item.votes_needed}</td>
-              <td>${item.votes_had}</td>
-              <td>
-                <button class="btn btn-sm btn-warning edit-btn" data-id="${item.number_in_list}">Edit</button>
-              </td>
-            </tr>`;
+                        <tr>
+                            <td>${item.number_in_list}</td>
+                            <td>${item.name}</td>
+                            <td>${item.description}</td>
+                            <td>${item.is_valid === true ? "Valid" : item.is_valid === false ? "Not Valid" : "Pending"}</td>
+                            <td>${item.votes_needed}</td>
+                            <td>${item.votes_had}</td>
+                            <td>
+                                <button class="btn btn-warning btn-sm">Edit</button>
+                            </td>
+                        </tr>`;
                         tbody.insertAdjacentHTML("beforeend", row);
                     });
                 })
-                .catch((error) => console.error("Error fetching items:", error));
+                .catch(error => console.error("Error fetching items:", error));
         }
 
         fetchItems();
 
-        // Handle form submission
-        document.getElementById("addItemForm").addEventListener("submit", function (e) {
-            e.preventDefault();
-            const title = document.getElementById("itemTitle").value;
-            const description = document.getElementById("itemDescription").value;
+        document.getElementById("add-item-form").addEventListener("submit", function (e) {
+            e.preventDefault(); // Prevent page reload
 
-            fetch("/items/", {
+            const name = document.getElementById("name").value.trim();
+            const description = document.getElementById("description").value.trim();
+
+            console.log("Form data:", { name, description }); // Log the form data
+
+            if (!name || !description) {
+                alert("Both Title and Description are required.");
+                return;
+            }
+
+            fetch("/add-item/", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value,
                 },
                 body: JSON.stringify({
-                    name: title,
+                    name: name,
                     description: description,
                     votes_needed: 1,
                 }),
             })
-                .then((response) => response.json())
-                .then((data) => {
+                .then(response => response.json())
+                .then(data => {
                     if (data.success) {
+                        alert("Item added successfully!");
+                        document.getElementById("add-item-form").reset();
                         fetchItems(); // Refresh the table
-                        document.getElementById("addItemForm").reset();
                     } else {
-                        alert("Error adding item: " + data.error);
+                        alert("Error: " + data.error);
                     }
                 })
-                .catch((error) => console.error("Error adding item:", error));
+                .catch(error => console.error("Error adding item:", error));
         });
+
     });
 </script>
 {% endblock %}

@@ -160,8 +160,14 @@ def fetch_list_items(request):
 def add_list_item(request):
     if request.method == "POST":
         try:
-            name = request.POST.get("name")
-            description = request.POST.get("description")
+            name = request.POST.get("name", "").strip()
+            description = request.POST.get("description", "").strip()
+
+            print("Received POST data:", {"name": name, "description": description})  # Debugging
+
+            if not name or not description:
+                return JsonResponse({"success": False, "error": "Both name and description are required."})
+
             votes_needed = int(request.POST.get("votes_needed", 1))
 
             # Create new item
