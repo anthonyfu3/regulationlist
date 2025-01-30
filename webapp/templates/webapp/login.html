@@ -19,34 +19,44 @@
 
     <!-- Latest Items Table -->
     <div class="row justify-content-center mt-5">
-        <div class="col-md-8">
-            <h3 class="text-center">Latest Things</h3>
-            <table id="latestItemsTable" class="table table-striped table-bordered">
+        <div class="container mt-4">
+            <h3 class="text-center">Latest Added Items</h3>
+            <table class="table table-striped">
                 <thead>
                     <tr>
                         <th>#</th>
                         <th>Name</th>
                         <th>Description</th>
-                        <th>Status</th>
                         <th>Votes Needed</th>
                         <th>Votes Had</th>
+                        <th>Status</th>
                     </tr>
                 </thead>
                 <tbody>
+                    {% if latest_items %}
                     {% for item in latest_items %}
-                        <tr>
-                            <td>{{ item.number_in_list }}</td>
-                            <td>{{ item.name }}</td>
-                            <td>{{ item.description }}</td>
-                            <td>{{ item.vote_status }}</td>
-                            <td>{{ item.votes_needed }}</td>
-                            <td>{{ item.votes_had }}</td>
-                        </tr>
-                    {% empty %}
-                        <tr>
-                            <td colspan="6" class="text-center">No items found</td>
-                        </tr>
+                    <tr>
+                        <td>{{ item.number_in_list }}</td>
+                        <td>{{ item.name }}</td>
+                        <td>{{ item.description }}</td>
+                        <td>{{ item.votes_needed }}</td>
+                        <td>{{ item.votes_had }}</td>
+                        <td>
+                            {% if item.is_valid == True %}
+                            Valid
+                            {% elif item.is_valid == False %}
+                            Not Valid
+                            {% else %}
+                            Pending
+                            {% endif %}
+                        </td>
+                    </tr>
                     {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center">No items found</td>
+                    </tr>
+                    {% endif %}
                 </tbody>
             </table>
         </div>

@@ -11,6 +11,11 @@ from django.contrib.auth.models import User
 class CustomLoginView(LoginView):
     template_name = 'webapp/login.html'
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['latest_items'] = ListItem.objects.order_by('-number_in_list')[:10]
+        return context
+
     def get_success_url(self):
         user = self.request.user
 
@@ -63,7 +68,7 @@ def manage_items(request, pk=None):
             }
             return JsonResponse(data)
         else:
-            items = ListItem.objects.all()
+            items = ListItem.objects.order_by('-number_in_list')  # Fetch all items
             data = [
                 {
                     "number_in_list": item.number_in_list,
@@ -130,6 +135,43 @@ def judge_item(request, pk):
             item.save()
             return JsonResponse({"success": True, "is_valid": item.is_valid, "votes_had": item.votes_had})
 
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)})
+
+    return HttpResponse("Invalid request method", status=405)
+
+@login_required
+def fetch_list_items(request):
+    items = ListItem.objects.order_by('-number_in_list')
+    data = [
+        {
+            "number_in_list": item.number_in_list,
+            "name": item.name,
+            "description": item.description,
+            "is_valid": item.is_valid,
+            "votes_needed": item.votes_needed,
+            "votes_had": item.votes_had,
+        }
+        for item in items
+    ]
+    return JsonResponse(data, safe=False)
+
+@login_required
+def add_list_item(request):
+    if request.method == "POST":
+        try:
+            name = request.POST.get("name")
+            description = request.POST.get("description")
+            votes_needed = int(request.POST.get("votes_needed", 1))
+
+            # Create new item
+            ListItem.objects.create(
+                name=name,
+                description=description,
+                votes_needed=votes_needed,
+                created_by=request.user,
+            )
+            return JsonResponse({"success": True})
         except Exception as e:
             return JsonResponse({"success": False, "error": str(e)})
 
