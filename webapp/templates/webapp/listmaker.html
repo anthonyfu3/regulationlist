@@ -4,28 +4,31 @@
 
 {% block content %}
 <div class="container my-4">
-    <h1 class="text-center">ListMaker Dashboard</h1>
+    <h1 class="text-center">Regulation ListMaker</h1>
 
     <!-- Form for Adding Items -->
-    <div class="card mb-4">
-        <div class="card-header">Add New Item</div>
+    <div class="card mb-4 form-card">
+        <div class="card-header">Add a Thing</div>
         <div class="card-body">
-            <form action="{% url 'add_item' %}" method="POST">
+            <form id="add-item-form">
                 {% csrf_token %}
                 <label>Name</label>
-                <input type="text" name="name">
-                
+                <input type="text" id="name" name="name" class="form-control mb-2" required>
+
                 <label>Description</label>
-                <input type="text" name="description">
-                
-                <button type="submit">Add Item</button>
-            </form>   
+                <input type="text" id="description" name="description" class="form-control mb-2" required>
+
+                <button type="submit" class="btn btn-success">Add</button>
+            </form>
         </div>
     </div>
 
     <!-- DataTable for Viewing the List -->
-    <div class="card">
-        <div class="card-header">List of Items</div>
+    <div class="card table-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>List of Things</span>
+            <button id="refreshTable" class="btn btn-secondary btn-sm">Refresh Table</button>
+        </div>
         <div class="card-body">
             <table id="listTable" class="table table-striped">
                 <thead>
@@ -49,49 +52,144 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-    const form = document.getElementById("add-item-form");
+        const form = document.getElementById("add-item-form");
+        const refreshButton = document.getElementById("refreshTable");
+        let table;
 
-    form.addEventListener("submit", function (e) {
-        e.preventDefault();
+        form.addEventListener("submit", function (e) {
+            e.preventDefault();
 
-        const name = document.getElementById("name").value.trim();
-        const description = document.getElementById("description").value.trim();
+            const name = document.getElementById("name").value.trim();
+            const description = document.getElementById("description").value.trim();
+            const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]").value;
 
-        if (!name || !description) {
-            alert("Both Title and Description are required!");
-            return;
+            if (!name || !description) {
+                alert("Both Name and Description are required!");
+                return;
+            }
+
+            fetch("{% url 'add_list_item' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrfToken,
+                },
+                body: JSON.stringify({ name, description })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        form.reset();
+                        loadListItems(); // Refresh table after successful addition
+                    } else {
+                        console.error("Error adding item:", data.error);
+                    }
+                })
+                .catch(error => console.error("Error adding item:", error));
+        });
+
+        refreshButton.addEventListener("click", function () {
+            loadListItems();
+        });
+
+        async function loadListItems() {
+            try {
+                console.log("Fetching list items...");
+                const response = await fetch("{% url 'fetch_list_items' %}");
+                const data = await response.json();
+
+                if (!Array.isArray(data)) {
+                    console.error("Unexpected response format:", data);
+                    return;
+                }
+
+                console.log("Fetched items:", data);
+
+                const tbody = document.querySelector("#listTable tbody");
+                tbody.innerHTML = "";
+
+                data.sort((a, b) => b.number_in_list - a.number_in_list);
+
+                data.forEach(item => {
+                    const row = `<tr>
+                        <td>${item.number_in_list}</td>
+                        <td>${item.name}</td>
+                        <td>${item.description}</td>
+                        <td>${item.is_valid ? "Valid" : "Pending"}</td>
+                        <td>${item.votes_needed}</td>
+                        <td>${item.votes_had}</td>
+                        <td>
+                            <button class="btn btn-primary btn-sm edit-btn" data-id="${item.number_in_list}" data-name="${item.name}" data-description="${item.description}">Edit</button>
+                        </td>
+                    </tr>`;
+                    tbody.innerHTML += row;
+                });
+
+                if (table) {
+                    table.destroy(); // Destroy existing DataTable
+                }
+
+                table = $('#listTable').DataTable({
+                    paging: true,
+                    searching: true,
+                    ordering: true,
+                    order: [[0, 'desc']],
+                    lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+                    pageLength: 10,
+                    buttons: ['csv', 'print'],
+                    dom: 'lBfrtip',
+                });
+
+                attachEditListeners();
+            } catch (error) {
+                console.error("Error loading list items:", error);
+            }
         }
 
-        fetch("/add-item/", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": getCSRFToken(),
-            },
-            body: JSON.stringify({
-                name: name,
-                description: description,
-            }),
-        })
-            .then((response) => response.json())
-            .then((data) => {
-                if (data.success) {
-                    alert("Item added successfully!");
-                    form.reset();
-                } else {
-                    alert("Error: " + data.error);
+        function attachEditListeners() {
+            document.querySelectorAll(".edit-btn").forEach(button => {
+                button.addEventListener("click", function () {
+                    const id = this.dataset.id;
+                    const currentName = this.dataset.name;
+                    const currentDesc = this.dataset.description;
+
+                    editItem(id, currentName, currentDesc);
+                });
+            });
+        }
+
+        async function editItem(id, currentName, currentDesc) {
+            const newName = prompt("Edit Title:", currentName);
+            const newDesc = prompt("Edit Description:", currentDesc);
+
+            if (newName !== null && newDesc !== null) {
+                try {
+                    const response = await fetch(`/edit-item/${id}/`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value,
+                        },
+                        body: JSON.stringify({ name: newName, description: newDesc })
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        loadListItems();
+                    } else {
+                        console.error("Error editing item:", data.error);
+                    }
+                } catch (error) {
+                    console.error("Error editing item:", error);
                 }
-            })
-            .catch((error) => console.error("Error adding item:", error));
+            }
+        }
+
+        // Initial load of the table
+        loadListItems();
     });
-
-    // Function to get CSRF token
-    function getCSRFToken() {
-        return document.querySelector("[name=csrfmiddlewaretoken]").value;
-    }
-});
-
-
-
 </script>
+
+
+
 {% endblock %}

@@ -10,14 +10,47 @@
     {% load static %}
     <link href="{% static 'webapp/styles.css' %}" rel="stylesheet">
 
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.dataTables.min.css">
+
 </head>
 
+<style>
+    body.dark .form-card {
+        background-color: #1f1f1f !important;
+        color: #ffffff !important;
+        border: 1px solid #333333 !important;
+    }
+
+    body.dark .table-card {
+        background-color: #1f1f1f !important;
+        color: #ffffff !important;
+        border: 1px solid #333333 !important;
+    }
+
+    body.dark #listTable {
+        background-color: #1f1f1f;
+        color: #ffffff;
+        border-color: #333333;
+    }
+
+    body.dark #listTable th {
+        background-color: #333333;
+        color: #ffffff;
+    }
+
+    body.dark #listTable td {
+        background-color: #252525;
+        color: #e0e0e0;
+    }
+</style>
 
 <body class="d-flex flex-column min-vh-100">
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm">
         <div class="container-fluid">
-            <a class="navbar-brand fw-bold" href="/public/">Regulation List</a>
+            <a class="navbar-brand fw-bold" href="/public/" id="navbarTitle">Regulation List</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
                 aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
@@ -55,29 +88,41 @@
 
     <!-- Footer -->
     <footer class="footer text-center py-3 mt-auto">
-        <p class="mb-0">&copy; {{ year }} WebApp. All rights reserved.</p>
+        <p class="mb-0">&copy; {{ year }} RegulationList. All rights reserved.</p>
     </footer>
 
     <!-- Latest Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- DataTables JS -->
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.print.min.js"></script>
+
     <script>
-        // Check for saved dark mode preference
-        const isDarkMode = localStorage.getItem('darkMode') === 'true';
+        document.addEventListener("DOMContentLoaded", () => {
+            const darkModeToggle = document.getElementById("darkModeToggle");
+            const darkModeIcon = document.getElementById("darkModeIcon");
+            const navbarTitle = document.getElementById("navbarTitle");
 
-        // Apply initial dark mode setting
-        const darkModeIcon = document.getElementById('darkModeIcon');
-        if (isDarkMode) {
-            darkModeIcon.textContent = '☀️'; // Sun icon for light mode
-        }
-        document.getElementById('darkModeToggle').addEventListener('click', () => {
-            document.body.classList.toggle('dark');
-            const isDark = document.body.classList.contains('dark');
-            darkModeIcon.textContent = isDark ? '☀️' : '🌙';
-            localStorage.setItem('darkMode', isDark);
+            // Check for saved dark mode preference
+            if (localStorage.getItem("darkMode") === "true") {
+                document.body.classList.add("dark");
+                darkModeIcon.textContent = '☀️'; // Sun icon for light mode
+                navbarTitle.style.color = "#ffffff";
+            }
+
+            darkModeToggle.addEventListener("click", () => {
+                document.body.classList.toggle("dark");
+                const isDark = document.body.classList.contains("dark");
+                darkModeIcon.textContent = isDark ? '☀️' : '🌙';
+                navbarTitle.style.color = isDark ? "#ffffff" : "#000000";
+                localStorage.setItem("darkMode", isDark);
+            });
         });
-
     </script>
-
 </body>
 
 </html>

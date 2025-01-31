@@ -1,20 +1,36 @@
+/* General Styles */
 body {
     font-family: 'Arial', sans-serif;
+    transition: background-color 0.3s, color 0.3s;
 }
 
+/* Light Mode */
+body {
+    background-color: #ffffff;
+    color: #000000;
+}
+
+/* Dark Mode */
 body.dark {
     background-color: #121212;
-    color: #ffffff;
+    color: #e0e0e0;
+}
+
+/* Navbar Styling */
+.navbar {
+    transition: background-color 0.3s;
 }
 
 body.dark .navbar {
     background-color: #1f1f1f !important;
 }
 
+body.dark .navbar-brand,
 body.dark .nav-link {
     color: #ffffff !important;
 }
 
+/* Button Styling */
 body.dark .btn-outline-secondary {
     color: #ffffff !important;
     border-color: #ffffff !important;
@@ -25,16 +41,19 @@ body.dark .btn-outline-secondary:hover {
     color: #121212 !important;
 }
 
-footer {
+/* Footer Styling */
+.footer {
     background-color: #f8f9fa;
     color: #6c757d;
+    transition: background-color 0.3s, color 0.3s;
 }
 
-body.dark footer {
+body.dark .footer {
     background-color: #1f1f1f;
     color: #ffffff;
 }
 
+/* Form Container */
 .form-container {
     background-color: #ffffff;
     color: #000000;
@@ -46,14 +65,49 @@ body.dark .form-container {
     color: #ffffff;
     border: 1px solid #2c2c2c;
 }
-/* Light Mode Footer */
-.footer {
-    background-color: #f8f9fa; /* Light background */
-    color: #6c757d; /* Muted text color */
+
+/* Card Styling */
+.card {
+    transition: background-color 0.3s, color 0.3s;
 }
 
-/* Dark Mode Footer */
-body.dark .footer {
-    background-color: #1f1f1f; /* Dark background */
-    color: #ffffff; /* Light text color */
+body.dark .card {
+    background-color: #1f1f1f !important;
+    color: #ffffff !important;
+    border: 1px solid #2c2c2c !important;
+}
+
+body.dark .card-header {
+    background-color: #2c2c2c !important;
+    color: #ffffff !important;
+}
+
+/* DataTable Styling */
+body.dark #listTable {
+    background-color: #1e1e1e;
+    color: #ffffff;
+    border-color: #333333;
+}
+
+body.dark #listTable th {
+    background-color: #333333;
+    color: #ffffff;
+}
+
+body.dark #listTable td {
+    background-color: #252525;
+    color: #e0e0e0;
+}
+
+/* DataTables Pagination Dark Mode */
+body.dark .dataTables_wrapper .dataTables_paginate .paginate_button {
+    background-color: #333333 !important;
+    color: #e0e0e0 !important;
+    border: 1px solid #444444;
+}
+
+body.dark .dataTables_wrapper .dataTables_length,
+body.dark .dataTables_wrapper .dataTables_filter,
+body.dark .dataTables_wrapper .dataTables_info {
+    color: #e0e0e0;
 }

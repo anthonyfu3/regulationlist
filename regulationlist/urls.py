@@ -9,6 +9,8 @@ from webapp.views import (
     manage_items,
     judge_item,
     add_list_item,
+    fetch_list_items,
+    edit_list_item,
 )
 
 urlpatterns = [
@@ -22,5 +24,7 @@ urlpatterns = [
     path('items/<int:pk>/', manage_items, name='manage_single_item'),
     path('judge_item/<int:pk>/', judge_item, name='judge_item'),
     path('', CustomLoginView.as_view(), name='default'),
-    path('add-item/', add_list_item, name='add_item'),
+    path('add-item/', add_list_item, name='add_list_item'),  
+    path('fetch-list-items/', fetch_list_items, name='fetch_list_items'),  
+    path('edit-item/<int:pk>/', edit_list_item, name='edit_list_item'),  
 ]

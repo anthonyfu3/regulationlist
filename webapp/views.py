@@ -156,18 +156,73 @@ def fetch_list_items(request):
     ]
     return JsonResponse(data, safe=False)
 
-@method_decorator(csrf_exempt, name='dispatch')
 @login_required
+def listmaker_view(request):
+    return render(request, 'webapp/listmaker.html')
+
+@login_required
+@csrf_exempt
 def add_list_item(request):
-    if request.method == 'POST':
-        # Retrieve form data
-        name = request.POST.get('name')
-        description = request.POST.get('description')
-        # Create and save your model instance, for example:
-        # MyModel.objects.create(name=name, description=description)
-        
-        # After saving, redirect (which also resets the form upon GET)
-        return redirect('listmaker')  # or whatever URL name you have
-    
-    # If GET (or any non-POST), render a template with a blank form
-    return render(request, 'listmaker/add_item.html', {})
+    if request.method == "POST":
+        try:
+            body = json.loads(request.body)
+            name = body.get("name", "").strip()
+            description = body.get("description", "").strip()
+
+            if not name or not description:
+                return JsonResponse({"success": False, "error": "Name and Description are required."})
+
+            # Create new item
+            item = ListItem.objects.create(
+                name=name,
+                description=description,
+                votes_needed=3,  # Default votes needed
+                created_by=request.user,
+            )
+
+            return JsonResponse({"success": True, "id": item.number_in_list})
+
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)})
+
+    return JsonResponse({"success": False, "error": "Invalid request method"}, status=405)
+
+@login_required
+def fetch_list_items(request):
+    items = ListItem.objects.order_by('-number_in_list')
+    data = [
+        {
+            "number_in_list": item.number_in_list,
+            "name": item.name,
+            "description": item.description,
+            "is_valid": item.is_valid,
+            "votes_needed": item.votes_needed,
+            "votes_had": item.votes_had,
+        }
+        for item in items
+    ]
+    return JsonResponse(data, safe=False)
+
+@csrf_exempt
+@login_required
+def edit_list_item(request, pk):
+    if request.method == "POST":
+        try:
+            body = json.loads(request.body)
+            name = body.get("name", "").strip()
+            description = body.get("description", "").strip()
+
+            if not name or not description:
+                return JsonResponse({"success": False, "error": "Name and Description are required."})
+
+            item = get_object_or_404(ListItem, pk=pk)
+            item.name = name
+            item.description = description
+            item.save()
+
+            return JsonResponse({"success": True})
+
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)})
+
+    return JsonResponse({"success": False, "error": "Invalid request method"}, status=405)
