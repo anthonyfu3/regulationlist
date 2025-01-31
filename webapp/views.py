@@ -1,4 +1,4 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponse
 from django.contrib.auth.views import LoginView, LogoutView
 from django.contrib.auth.decorators import login_required
@@ -156,29 +156,18 @@ def fetch_list_items(request):
     ]
     return JsonResponse(data, safe=False)
 
+@method_decorator(csrf_exempt, name='dispatch')
 @login_required
 def add_list_item(request):
-    if request.method == "POST":
-        try:
-            name = request.POST.get("name", "").strip()
-            description = request.POST.get("description", "").strip()
-
-            print("Received POST data:", {"name": name, "description": description})  # Debugging
-
-            if not name or not description:
-                return JsonResponse({"success": False, "error": "Both name and description are required."})
-
-            votes_needed = int(request.POST.get("votes_needed", 1))
-
-            # Create new item
-            ListItem.objects.create(
-                name=name,
-                description=description,
-                votes_needed=votes_needed,
-                created_by=request.user,
-            )
-            return JsonResponse({"success": True})
-        except Exception as e:
-            return JsonResponse({"success": False, "error": str(e)})
-
-    return HttpResponse("Invalid request method", status=405)
+    if request.method == 'POST':
+        # Retrieve form data
+        name = request.POST.get('name')
+        description = request.POST.get('description')
+        # Create and save your model instance, for example:
+        # MyModel.objects.create(name=name, description=description)
+        
+        # After saving, redirect (which also resets the form upon GET)
+        return redirect('listmaker')  # or whatever URL name you have
+    
+    # If GET (or any non-POST), render a template with a blank form
+    return render(request, 'listmaker/add_item.html', {})

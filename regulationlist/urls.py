@@ -22,5 +22,5 @@ urlpatterns = [
     path('items/<int:pk>/', manage_items, name='manage_single_item'),
     path('judge_item/<int:pk>/', judge_item, name='judge_item'),
     path('', CustomLoginView.as_view(), name='default'),
-    path('add-item/', add_list_item, name='add_list_item'),
+    path('add-item/', add_list_item, name='add_item'),
 ]
