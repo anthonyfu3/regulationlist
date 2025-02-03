@@ -30,22 +30,24 @@
             <button id="refreshTable" class="btn btn-secondary btn-sm">Refresh Table</button>
         </div>
         <div class="card-body">
-            <table id="listTable" class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Title</th>
-                        <th>Description</th>
-                        <th>Status</th>
-                        <th>Votes Needed</th>
-                        <th>Votes Had</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Rows will be dynamically populated -->
-                </tbody>
-            </table>
+            <div class="table-responsive">
+                <table id="listTable" class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Title</th>
+                            <th>Description</th>
+                            <th>Status</th>
+                            <th>Votes Needed</th>
+                            <th>Votes Had</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Rows will be dynamically populated -->
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
@@ -54,7 +56,17 @@
     document.addEventListener("DOMContentLoaded", function () {
         const form = document.getElementById("add-item-form");
         const refreshButton = document.getElementById("refreshTable");
-        let table;
+        let table = $('#listTable').DataTable({
+            stateSave: true,
+            paging: true,
+            searching: true,
+            ordering: true,
+            order: [[0, 'desc']],
+            lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+            pageLength: 10,
+            buttons: ['csv', 'print'],
+            dom: 'lBfrtip',
+        });
 
         form.addEventListener("submit", function (e) {
             e.preventDefault();
@@ -80,70 +92,52 @@
                 .then(data => {
                     if (data.success) {
                         form.reset();
-                        loadListItems(); // Refresh table after successful addition
+                        addRowToTable(data.item); // Add new row dynamically
                     } else {
-                        console.error("Error adding item:", data.error);
+                        console.error("Error:", data.error);
                     }
                 })
                 .catch(error => console.error("Error adding item:", error));
         });
 
         refreshButton.addEventListener("click", function () {
-            loadListItems();
+            reloadTableData();
         });
 
-        async function loadListItems() {
-            try {
-                console.log("Fetching list items...");
-                const response = await fetch("{% url 'fetch_list_items' %}");
-                const data = await response.json();
+        function reloadTableData() {
+            fetch("{% url 'fetch_list_items' %}")
+                .then(response => response.json())
+                .then(data => {
+                    table.clear();
+                    data.sort((a, b) => b.number_in_list - a.number_in_list);
+                    data.forEach(item => {
+                        table.row.add([
+                            item.number_in_list,
+                            item.name,
+                            item.description,
+                            item.is_valid ? "Valid" : "Pending",
+                            item.votes_needed,
+                            item.votes_had,
+                            `<button class="btn btn-primary btn-sm edit-btn" data-id="${item.number_in_list}" data-name="${item.name}" data-description="${item.description}">Edit</button>`
+                        ]);
+                    });
+                    table.draw();
+                    attachEditListeners();
+                })
+                .catch(error => console.error("Error loading list items:", error));
+        }
 
-                if (!Array.isArray(data)) {
-                    console.error("Unexpected response format:", data);
-                    return;
-                }
-
-                console.log("Fetched items:", data);
-
-                const tbody = document.querySelector("#listTable tbody");
-                tbody.innerHTML = "";
-
-                data.sort((a, b) => b.number_in_list - a.number_in_list);
-
-                data.forEach(item => {
-                    const row = `<tr>
-                        <td>${item.number_in_list}</td>
-                        <td>${item.name}</td>
-                        <td>${item.description}</td>
-                        <td>${item.is_valid ? "Valid" : "Pending"}</td>
-                        <td>${item.votes_needed}</td>
-                        <td>${item.votes_had}</td>
-                        <td>
-                            <button class="btn btn-primary btn-sm edit-btn" data-id="${item.number_in_list}" data-name="${item.name}" data-description="${item.description}">Edit</button>
-                        </td>
-                    </tr>`;
-                    tbody.innerHTML += row;
-                });
-
-                if (table) {
-                    table.destroy(); // Destroy existing DataTable
-                }
-
-                table = $('#listTable').DataTable({
-                    paging: true,
-                    searching: true,
-                    ordering: true,
-                    order: [[0, 'desc']],
-                    lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
-                    pageLength: 10,
-                    buttons: ['csv', 'print'],
-                    dom: 'lBfrtip',
-                });
-
-                attachEditListeners();
-            } catch (error) {
-                console.error("Error loading list items:", error);
-            }
+        function addRowToTable(item) {
+            table.row.add([
+                item.number_in_list,
+                item.name,
+                item.description,
+                item.is_valid ? "Valid" : "Pending",
+                item.votes_needed,
+                item.votes_had,
+                `<button class="btn btn-primary btn-sm edit-btn" data-id="${item.number_in_list}" data-name="${item.name}" data-description="${item.description}">Edit</button>`
+            ]).draw(false);
+            attachEditListeners();
         }
 
         function attachEditListeners() {
@@ -153,43 +147,34 @@
                     const currentName = this.dataset.name;
                     const currentDesc = this.dataset.description;
 
-                    editItem(id, currentName, currentDesc);
+                    const newName = prompt("Edit Title:", currentName);
+                    const newDesc = prompt("Edit Description:", currentDesc);
+
+                    if (newName !== null && newDesc !== null) {
+                        fetch(`/edit-item/${id}/`, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value,
+                            },
+                            body: JSON.stringify({ name: newName, description: newDesc })
+                        })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    reloadTableData();
+                                } else {
+                                    console.error("Error:", data.error);
+                                }
+                            })
+                            .catch(error => console.error("Error editing item:", error));
+                    }
                 });
             });
         }
 
-        async function editItem(id, currentName, currentDesc) {
-            const newName = prompt("Edit Title:", currentName);
-            const newDesc = prompt("Edit Description:", currentDesc);
-
-            if (newName !== null && newDesc !== null) {
-                try {
-                    const response = await fetch(`/edit-item/${id}/`, {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value,
-                        },
-                        body: JSON.stringify({ name: newName, description: newDesc })
-                    });
-
-                    const data = await response.json();
-                    if (data.success) {
-                        loadListItems();
-                    } else {
-                        console.error("Error editing item:", data.error);
-                    }
-                } catch (error) {
-                    console.error("Error editing item:", error);
-                }
-            }
-        }
-
-        // Initial load of the table
-        loadListItems();
+        reloadTableData();
     });
 </script>
-
-
 
 {% endblock %}

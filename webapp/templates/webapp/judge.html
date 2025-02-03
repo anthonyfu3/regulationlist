@@ -3,6 +3,168 @@
 {% block title %}Judge Dashboard{% endblock %}
 
 {% block content %}
-<h2>Welcome to the Judge Dashboard</h2>
-<p>Here is where you can review and manage items for judges.</p>
+<div class="container my-4">
+    <h1 class="text-center">Judge Dashboard</h1>
+    <!-- The CSRF token is assumed to be in your base template -->
+    <div class="card table-card">
+        <div class="card-header">
+            <span>List of Things</span>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="judgeTable" class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Title</th>
+                            <th>Description</th>
+                            <th>Status</th>
+                            <th>Votes Needed</th>
+                            <th>Votes Had</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Rows will be dynamically populated -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Existing dark mode rules for listTable */
+    body.dark .form-card {
+        background-color: #1f1f1f !important;
+        color: #ffffff !important;
+        border: 1px solid #333333 !important;
+    }
+
+    body.dark .table-card {
+        background-color: #1f1f1f !important;
+        color: #ffffff !important;
+        border: 1px solid #333333 !important;
+    }
+
+    body.dark #listTable {
+        background-color: #1f1f1f;
+        color: #ffffff;
+        border-color: #333333;
+    }
+
+    body.dark #listTable th {
+        background-color: #333333;
+        color: #ffffff;
+    }
+
+    body.dark #listTable td {
+        background-color: #252525;
+        color: #e0e0e0;
+    }
+
+    /* New dark mode rules for judgeTable */
+    body.dark #judgeTable {
+        background-color: #1f1f1f;
+        color: #ffffff;
+        border-color: #333333;
+    }
+
+    body.dark #judgeTable th {
+        background-color: #333333;
+        color: #ffffff;
+    }
+
+    body.dark #judgeTable td {
+        background-color: #252525;
+        color: #e0e0e0;
+    }
+</style>
+
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // Initialize the DataTable with state saving enabled
+        let table = $('#judgeTable').DataTable({
+            stateSave: true,
+            paging: true,
+            searching: true,
+            ordering: true,
+            order: [[0, 'desc']],
+            lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+            pageLength: 10,
+            buttons: ['csv', 'print'],
+            dom: 'lBfrtip'
+        });
+
+        // Function to load/reload table data from the server
+        function reloadTableData() {
+            fetch("{% url 'fetch_list_items' %}")
+                .then(response => response.json())
+                .then(data => {
+                    table.clear();
+                    // Sort data by latest first
+                    data.sort((a, b) => b.number_in_list - a.number_in_list);
+                    data.forEach(item => {
+                        // For now, default the judge's vote to "pending".
+                        // In a real-world scenario, include the judge's current vote in the JSON.
+                        const actionsHtml = `
+                        <div class="btn-group btn-group-toggle" data-toggle="buttons">
+                            <label class="btn btn-danger btn-sm">
+                                <input type="radio" name="vote-${item.number_in_list}" value="not valid" autocomplete="off"> Invalid
+                            </label>
+                            <label class="btn btn-secondary btn-sm active">
+                                <input type="radio" name="vote-${item.number_in_list}" value="pending" autocomplete="off" checked> Pending
+                            </label>
+                            <label class="btn btn-success btn-sm">
+                                <input type="radio" name="vote-${item.number_in_list}" value="valid" autocomplete="off"> Valid
+                            </label>
+                        </div>
+                    `;
+                        table.row.add([
+                            item.number_in_list,
+                            item.name,
+                            item.description,
+                            item.is_valid ? "Valid" : "Pending",
+                            item.votes_needed,
+                            item.votes_had,
+                            actionsHtml
+                        ]);
+                    });
+                    table.draw();
+                })
+                .catch(error => console.error("Error loading list items:", error));
+        }
+
+        // Delegate change event to handle vote changes on any radio input in the table
+        $('#judgeTable tbody').on('change', 'input[type=radio]', function () {
+            const vote = $(this).val();
+            // Extract the item id from the radio input's name attribute (format "vote-<id>")
+            const itemId = $(this).attr('name').replace('vote-', '');
+            // Send the vote change to the server
+            fetch(`/judge_item/${itemId}/`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value,
+                },
+                body: JSON.stringify({ vote: vote })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Optionally, update the row status or refresh the entire table
+                        reloadTableData();
+                    } else {
+                        console.error("Vote error:", data.error);
+                    }
+                })
+                .catch(error => console.error("Error sending vote:", error));
+        });
+
+        // Initial load and auto-refresh interval (adjust as needed)
+        reloadTableData();
+        setInterval(reloadTableData, 5000);
+    });
+</script>
 {% endblock %}

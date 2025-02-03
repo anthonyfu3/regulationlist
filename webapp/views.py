@@ -180,12 +180,24 @@ def add_list_item(request):
                 created_by=request.user,
             )
 
-            return JsonResponse({"success": True, "id": item.number_in_list})
+            # Return full item details
+            return JsonResponse({
+                "success": True,
+                "item": {
+                    "number_in_list": item.number_in_list,
+                    "name": item.name,
+                    "description": item.description,
+                    "is_valid": item.is_valid,
+                    "votes_needed": item.votes_needed,
+                    "votes_had": item.votes_had,
+                }
+            })
 
         except Exception as e:
             return JsonResponse({"success": False, "error": str(e)})
 
     return JsonResponse({"success": False, "error": "Invalid request method"}, status=405)
+
 
 @login_required
 def fetch_list_items(request):
@@ -226,3 +238,18 @@ def edit_list_item(request, pk):
             return JsonResponse({"success": False, "error": str(e)})
 
     return JsonResponse({"success": False, "error": "Invalid request method"}, status=405)
+
+def public_fetch_list_items(request):
+    items = ListItem.objects.order_by('-number_in_list')
+    data = [
+        {
+            "number_in_list": item.number_in_list,
+            "name": item.name,
+            "description": item.description,
+            "is_valid": item.is_valid,
+            "votes_needed": item.votes_needed,
+            "votes_had": item.votes_had,
+        }
+        for item in items
+    ]
+    return JsonResponse(data, safe=False)

@@ -1,9 +1,77 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Public Page</title>
-</head>
-<body>
-    <h2>Welcome to the Public Page!</h2>
-</body>
-</html>
+{% extends "webapp/base.html" %}
+
+{% block title %}Regulation List of Things{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <h1 class="text-center">Regulation List of Things</h1>
+
+    <!-- DataTable for Viewing the List -->
+    <div class="card table-card">
+        <div class="card-header">
+            <span>List of Things</span>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="listTable" class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Title</th>
+                            <th>Description</th>
+                            <th>Status</th>
+                            <th>Votes Needed</th>
+                            <th>Votes Had</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Table rows will be dynamically populated -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        let table = $('#listTable').DataTable({
+            stateSave: true,
+            paging: true,
+            searching: true,
+            ordering: true,
+            order: [[0, 'desc']],
+            lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+            pageLength: 10,
+            buttons: ['csv', 'print'],
+            dom: 'lBfrtip'
+        });
+
+        function reloadTableData() {
+            fetch("{% url 'public_fetch_list_items' %}")
+                .then(response => response.json())
+                .then(data => {
+                    table.clear();
+                    data.sort((a, b) => b.number_in_list - a.number_in_list);
+                    data.forEach(item => {
+                        table.row.add([
+                            item.number_in_list,
+                            item.name,
+                            item.description,
+                            item.is_valid ? "Valid" : "Pending",
+                            item.votes_needed,
+                            item.votes_had
+                        ]);
+                    });
+                    table.draw();
+                })
+                .catch(error => console.error("Error loading list items:", error));
+        }
+
+        // Initial load
+        reloadTableData();
+        // Auto-refresh every 5 seconds
+        setInterval(reloadTableData, 5000);
+    });
+</script>
+{% endblock %}
