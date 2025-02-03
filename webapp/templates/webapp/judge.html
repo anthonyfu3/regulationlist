@@ -1,8 +1,18 @@
 {% extends "webapp/base.html" %}
-
 {% block title %}Judge Dashboard{% endblock %}
 
+{% block navbar_extra %}
+<li class="nav-item">
+    <a class="nav-link" href="{% url 'logout' %}">Logout</a>
+</li>
+<li class="nav-item">
+    <a class="nav-link" href="{% url 'public' %}">Public Site</a>
+</li>
+{% endblock %}
+
 {% block content %}
+<meta name="csrf-token" content="{{ csrf_token }}">
+
 <div class="container my-4">
     <h1 class="text-center">Judge Dashboard</h1>
     <div class="card table-card">
@@ -97,6 +107,9 @@
 
         // Function to reload table data from the judge endpoint
         function reloadTableData() {
+            // Save current page index
+            var currentPage = table.page();
+
             fetch("{% url 'fetch_judge_list_items' %}")
                 .then(response => response.json())
                 .then(data => {
@@ -113,18 +126,18 @@
                         let notValidChecked = (currentVote === "not valid") ? "checked" : "";
 
                         const actionsHtml = `
-                        <div class="btn-group btn-group-toggle" data-toggle="buttons">
-                            <label class="btn btn-danger btn-sm ${notValidActive}">
-                                <input type="radio" name="vote-${item.number_in_list}" value="not valid" autocomplete="off" ${notValidChecked}> Invalid
-                            </label>
-                            <label class="btn btn-secondary btn-sm ${pendingActive}">
-                                <input type="radio" name="vote-${item.number_in_list}" value="pending" autocomplete="off" ${pendingChecked}> Pending
-                            </label>
-                            <label class="btn btn-success btn-sm ${validActive}">
-                                <input type="radio" name="vote-${item.number_in_list}" value="valid" autocomplete="off" ${validChecked}> Valid
-                            </label>
-                        </div>
-                    `;
+                    <div class="btn-group btn-group-toggle" data-toggle="buttons">
+                        <label class="btn btn-danger btn-sm ${notValidActive}">
+                            <input type="radio" name="vote-${item.number_in_list}" value="not valid" autocomplete="off" ${notValidChecked}> Invalid
+                        </label>
+                        <label class="btn btn-secondary btn-sm ${pendingActive}">
+                            <input type="radio" name="vote-${item.number_in_list}" value="pending" autocomplete="off" ${pendingChecked}> Pending
+                        </label>
+                        <label class="btn btn-success btn-sm ${validActive}">
+                            <input type="radio" name="vote-${item.number_in_list}" value="valid" autocomplete="off" ${validChecked}> Valid
+                        </label>
+                    </div>
+                `;
                         table.row.add([
                             item.number_in_list,
                             item.name,
@@ -135,20 +148,24 @@
                             actionsHtml
                         ]);
                     });
-                    table.draw();
+                    // Redraw the table while preserving pagination
+                    table.draw(false);
+                    table.page(currentPage).draw(false);
                 })
                 .catch(error => console.error("Error loading list items:", error));
         }
+
 
         // Listen for vote changes (delegated event)
         $('#judgeTable tbody').on('change', 'input[type=radio]', function () {
             const vote = $(this).val();
             const itemId = $(this).attr('name').replace('vote-', '');
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
             fetch(`/judge_item/${itemId}/`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value,
+                    "X-CSRFToken": csrfToken,
                 },
                 body: JSON.stringify({ vote: vote })
             })
@@ -168,4 +185,5 @@
         setInterval(reloadTableData, 5000);
     });
 </script>
+
 {% endblock %}

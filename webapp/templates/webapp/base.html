@@ -57,19 +57,7 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
-                    {% if user.is_authenticated %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'logout' %}">Logout</a>
-                    </li>
-                    {% else %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'login' %}">Login</a>
-                    </li>
-                    {% endif %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="/public/">Public Site</a>
-                    </li>
-                    <!-- Dark Mode Toggle -->
+                    {% block navbar_extra %}{% endblock %}
                     <li class="nav-item">
                         <button id="darkModeToggle" class="btn btn-outline-secondary btn-sm ms-3">
                             <span id="darkModeIcon">🌙</span> Dark Mode
@@ -79,6 +67,7 @@
             </div>
         </div>
     </nav>
+
 
     <!-- Main Content -->
     <main class="container my-4">

@@ -37,8 +37,13 @@ class CustomLoginView(LoginView):
             return '/public/'  # Default fallback
 
 class CustomLogoutView(LogoutView):
-    next_page = '/login/'  # Redirect to the custom login page
-    http_method_names = ['get', 'post']
+    next_page = '/login/'  # The URL you want to redirect to after logout
+
+    def dispatch(self, request, *args, **kwargs):
+        # Call the parent dispatch to perform the logout
+        response = super().dispatch(request, *args, **kwargs)
+        # Then force a redirect to the login page
+        return redirect(self.next_page)
 
 @login_required
 def listmaker_view(request):
@@ -112,9 +117,7 @@ def judge_item(request, pk):
             vote = body.get("vote")
             if vote not in ["valid", "not valid", "pending"]:
                 return JsonResponse({"success": False, "error": "Invalid vote value."})
-            
             item = get_object_or_404(ListItem, pk=pk)
-            # Get or create the judge's vote record for this item
             judge_vote, created = JudgeVote.objects.get_or_create(
                 list_item=item, judge=request.user,
                 defaults={'vote': vote}
@@ -122,29 +125,22 @@ def judge_item(request, pk):
             if not created:
                 judge_vote.vote = vote
                 judge_vote.save()
-            
-            # Recalculate net votes for the item
+            # Recalculate net votes
             net_votes = 0
             for jv in item.judge_votes.all():
                 if jv.vote == "valid":
                     net_votes += 1
                 elif jv.vote == "not valid":
                     net_votes -= 1
-                # "pending" contributes 0
-
             item.votes_had = net_votes
-
-            # Determine majority threshold; for example:
             judges_count = User.objects.filter(groups__name='Judge').count()
             majority = judges_count // 2 + 1
-
             if net_votes >= majority:
                 item.is_valid = True
             elif abs(net_votes) >= majority:
                 item.is_valid = False
             else:
-                item.is_valid = None  # still pending
-
+                item.is_valid = None
             item.save()
             return JsonResponse({
                 "success": True,
@@ -154,6 +150,7 @@ def judge_item(request, pk):
         except Exception as e:
             return JsonResponse({"success": False, "error": str(e)})
     return HttpResponse("Invalid request method", status=405)
+
 
 @login_required
 def fetch_list_items(request):
