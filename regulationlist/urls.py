@@ -11,7 +11,8 @@ from webapp.views import (
     add_list_item,
     fetch_list_items,
     edit_list_item,
-    public_fetch_list_items
+    public_fetch_list_items,
+    fetch_judge_list_items
 )
 
 urlpatterns = [
@@ -29,4 +30,5 @@ urlpatterns = [
     path('fetch-list-items/', fetch_list_items, name='fetch_list_items'),
     path('edit-item/<int:pk>/', edit_list_item, name='edit_list_item'),
     path('api/public-list-items/', public_fetch_list_items, name='public_fetch_list_items'),
+    path('fetch-judge-list-items/', fetch_judge_list_items, name='fetch_judge_list_items'),
 ]

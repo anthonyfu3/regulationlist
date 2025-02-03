@@ -5,7 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 import json
-from .models import ListItem
+from .models import ListItem, JudgeVote
 from django.contrib.auth.models import User
 
 class CustomLoginView(LoginView):
@@ -103,41 +103,56 @@ def manage_items(request, pk=None):
 
     return HttpResponse("Invalid request method", status=405)
 
-@method_decorator(csrf_exempt, name='dispatch')
+@csrf_exempt
+@login_required
 def judge_item(request, pk):
     if request.method == "POST":
         try:
             body = json.loads(request.body)
-            vote = body.get("vote")  # 'valid' or 'not valid'
-
-            if vote not in ["valid", "not valid"]:
+            vote = body.get("vote")
+            if vote not in ["valid", "not valid", "pending"]:
                 return JsonResponse({"success": False, "error": "Invalid vote value."})
-
+            
             item = get_object_or_404(ListItem, pk=pk)
+            # Get or create the judge's vote record for this item
+            judge_vote, created = JudgeVote.objects.get_or_create(
+                list_item=item, judge=request.user,
+                defaults={'vote': vote}
+            )
+            if not created:
+                judge_vote.vote = vote
+                judge_vote.save()
+            
+            # Recalculate net votes for the item
+            net_votes = 0
+            for jv in item.judge_votes.all():
+                if jv.vote == "valid":
+                    net_votes += 1
+                elif jv.vote == "not valid":
+                    net_votes -= 1
+                # "pending" contributes 0
 
-            # Update votes
-            if vote == "valid":
-                item.votes_had += 1
-            elif vote == "not valid":
-                item.votes_had -= 1
+            item.votes_had = net_votes
 
-            # Check majority
+            # Determine majority threshold; for example:
             judges_count = User.objects.filter(groups__name='Judge').count()
             majority = judges_count // 2 + 1
 
-            if item.votes_had >= majority:
+            if net_votes >= majority:
                 item.is_valid = True
-            elif abs(item.votes_had) >= majority:
+            elif abs(net_votes) >= majority:
                 item.is_valid = False
             else:
-                item.is_valid = None  # Undecided
+                item.is_valid = None  # still pending
 
             item.save()
-            return JsonResponse({"success": True, "is_valid": item.is_valid, "votes_had": item.votes_had})
-
+            return JsonResponse({
+                "success": True,
+                "is_valid": item.is_valid,
+                "votes_had": item.votes_had
+            })
         except Exception as e:
             return JsonResponse({"success": False, "error": str(e)})
-
     return HttpResponse("Invalid request method", status=405)
 
 @login_required
@@ -252,4 +267,25 @@ def public_fetch_list_items(request):
         }
         for item in items
     ]
+    return JsonResponse(data, safe=False)
+
+@login_required
+def fetch_judge_list_items(request):
+    items = ListItem.objects.order_by('-number_in_list')
+    data = []
+    for item in items:
+        # Try to get this judge's vote on the item; default to "pending" if none exists.
+        try:
+            current_vote = JudgeVote.objects.get(list_item=item, judge=request.user).vote
+        except JudgeVote.DoesNotExist:
+            current_vote = "pending"
+        data.append({
+            "number_in_list": item.number_in_list,
+            "name": item.name,
+            "description": item.description,
+            "is_valid": item.is_valid,
+            "votes_needed": item.votes_needed,
+            "votes_had": item.votes_had,
+            "current_judge_vote": current_vote
+        })
     return JsonResponse(data, safe=False)
